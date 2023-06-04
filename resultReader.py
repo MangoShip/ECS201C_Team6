@@ -22,6 +22,10 @@ with open(sys.argv[1]) as file:
                     start = float(line["CudaEvent"]["startNs"])
                     end = float(line["CudaEvent"]["endNs"])
                     total_duration += (end - start)
+                elif key == "Type" and value == 120:
+                    start = float(line["CudaUvmGpuPageFaultEvent"]["startNs"])
+                    end = float(line["CudaUvmGpuPageFaultEvent"]["endNs"])
+                    total_duration += (end - start)
             elif transfer_type == "direct":
                 if key == "Type" and value == 80:
                     if line["CudaEvent"]["memcpy"]["srcKind"] == 0:
