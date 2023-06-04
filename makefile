@@ -1,4 +1,4 @@
-cuda_file = mmulUnified
+cuda_file = mmul
 
 all:
 	nvcc -o $(cuda_file) $(cuda_file).cu

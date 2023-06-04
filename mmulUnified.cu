@@ -23,40 +23,44 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
    }
 }
 
-__global__ void matrixMul(const int *a, const int *b, int *c, int N) {
+__global__ void matrixMul(const int *a, const int *b, int *c, size_t N) {
   // Compute each thread's global row and column index
-  int row = blockIdx.y * blockDim.y + threadIdx.y;
-  int col = blockIdx.x * blockDim.x + threadIdx.x;
+  size_t row = blockIdx.y * blockDim.y + threadIdx.y;
+  size_t col = blockIdx.x * blockDim.x + threadIdx.x;
 
   // Iterate over row, and down column
   c[row * N + col] = 0;
-  for (int k = 0; k < N; k++) {
+  for (size_t k = 0; k < N; k++) {
     // Accumulate results for a single element
     c[row * N + col] += a[row * N + k] * b[k * N + col];
   }
 }
 
 // Check result on the CPU
-void verify_result(int* a, int* b, int* c, int N) {
+void verify_result(int* a, int* b, int* c, size_t N) {
   // For every row...
-  for (int i = 0; i < N; i++) {
+  for (size_t i = 0; i < N; i++) {
     // For every column...
-    for (int j = 0; j < N; j++) {
+    for (size_t j = 0; j < N; j++) {
       // For every element in the row-column pair
-      int tmp = 0;
-      for (int k = 0; k < N; k++) {
+      size_t tmp = 0;
+      for (size_t k = 0; k < N; k++) {
         // Accumulate the partial results
         tmp += a[i * N + k] * b[k * N + j];
       }
 
       // Check against the CPU result
-      assert(tmp == c[i * N + j]);
+      if (tmp != c[i * N + j]) {
+        std::cout << tmp << " != " << c[i * N + j] << "\n";
+        std::exit(1);
+      }
     }
   }
 }
 
 int main() {
   // Matrix size of 1024 x 1024;
+  //size_t N = 1 << 16;
   size_t N = 1 << 16;
 
   // Size (in bytes) of matrix
@@ -74,7 +78,7 @@ int main() {
   }
 
   // Threads per CTA dimension
-  int THREADS = 64;
+  int THREADS = 32;
 
   // Blocks per grid dimension (assumes THREADS divides N evenly)
   int BLOCKS = N / THREADS;
@@ -98,7 +102,7 @@ int main() {
   auto start = std::chrono::steady_clock::now();
 
   // Launch kernel
-  matrixMul<<<BLOCKS, THREADS>>>(d_a, d_b, d_c, N);
+  matrixMul<<<blocks, threads>>>(d_a, d_b, d_c, N);
 
   gpuErrchk(cudaDeviceSynchronize());
 

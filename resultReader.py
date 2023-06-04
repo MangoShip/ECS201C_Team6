@@ -32,4 +32,4 @@ with open(sys.argv[1]) as file:
                 print("Invalid transfer type!", transfer_type)       
                 print("Available transfer type: unified, unified_pref, direct")         
                 exit()     
-    print("Total Duration: ", total_duration / 1000000000)
+    print("Total Duration:", total_duration / 1000000000)
