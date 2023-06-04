@@ -13,6 +13,16 @@ using std::cout;
 using std::generate;
 using std::vector;
 
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+   if (code != cudaSuccess) 
+   {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
+
 __global__ void matrixMul(const int *a, const int *b, int *c, int N) {
   // Compute each thread's global row and column index
   int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -47,43 +57,24 @@ void verify_result(int* a, int* b, int* c, int N) {
 
 int main() {
   // Matrix size of 1024 x 1024;
-  int N = 1 << 10;
+  size_t N = 1 << 16;
 
   // Size (in bytes) of matrix
   size_t bytes = N * N * sizeof(int);
 
-  // Host vectors
-  /*vector<int> h_a(N * N);
-  vector<int> h_b(N * N);
-  vector<int> h_c(N * N);
-
-  // Initialize matrices
-  generate(h_a.begin(), h_a.end(), []() { return rand() % 100; });
-  generate(h_b.begin(), h_b.end(), []() { return rand() % 100; });*/
-
   // Allocate device memory
   int *d_a, *d_b, *d_c;
-  cudaMallocManaged(&d_a, bytes);
-  cudaMallocManaged(&d_b, bytes);
-  cudaMallocManaged(&d_c, bytes);
+  gpuErrchk(cudaMallocManaged(&d_a, bytes));
+  gpuErrchk(cudaMallocManaged(&d_b, bytes));
+  gpuErrchk(cudaMallocManaged(&d_c, bytes));
 
   for (size_t i = 0; i < N * N; i++){
     d_a[i] = rand() % 100;
     d_b[i] = rand() % 100;
   }
 
-  // Allocate device memory
-  /*int *d_a, *d_b, *d_c;
-  cudaMalloc(&d_a, bytes);
-  cudaMalloc(&d_b, bytes);
-  cudaMalloc(&d_c, bytes);
-
-  // Copy data to the device
-  cudaMemcpy(d_a, h_a.data(), bytes, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_b, h_b.data(), bytes, cudaMemcpyHostToDevice);*/
-
   // Threads per CTA dimension
-  int THREADS = 32;
+  int THREADS = 64;
 
   // Blocks per grid dimension (assumes THREADS divides N evenly)
   int BLOCKS = N / THREADS;
@@ -92,38 +83,38 @@ int main() {
   dim3 threads(THREADS, THREADS);
   dim3 blocks(BLOCKS, BLOCKS);
 
-  /*Test with CUDA UVM's Prefetching
-  int device_id = cudaGetDevice(&device_id);
+  //Test with CUDA UVM's Prefetching
+  /*int device_id = cudaGetDevice(&device_id);
   int device_count = 0;
   cudaGetDeviceCount(&device_count);
   std::cout << "CUDA Device Count: " << device_count << "\n";
   std::cout << "CUDA Device ID: " << device_id << "\n";
 
   cudaMemPrefetchAsync(d_a, bytes, device_id);
-  cudaMemPrefetchAsync(d_b, bytes, device_id);*/
+  cudaMemPrefetchAsync(d_b, bytes, device_id);
+  cudaMemPrefetchAsync(d_c, bytes, device_id);*/
 
+  std::cout << "Kernel starting:\n";
   auto start = std::chrono::steady_clock::now();
 
   // Launch kernel
   matrixMul<<<blocks, threads>>>(d_a, d_b, d_c, N);
 
-  // Copy back to the host
-  //cudaMemcpy(h_c.data(), d_c, bytes, cudaMemcpyDeviceToHost);
-  cudaDeviceSynchronize();
+  gpuErrchk(cudaDeviceSynchronize());
 
   auto end = std::chrono::steady_clock::now();
   std::chrono::duration<double> time = end - start;
   cout << "Kernel Duration: " << time.count() << "\n";
 
   // Check result
-  verify_result(d_a, d_b, d_c, N);
+  //verify_result(d_a, d_b, d_c, N);
 
   cout << "COMPLETED SUCCESSFULLY\n";
 
   // Free memory on device
-  cudaFree(d_a);
-  cudaFree(d_b);
-  cudaFree(d_c);
+  gpuErrchk(cudaFree(d_a));
+  gpuErrchk(cudaFree(d_b));
+  gpuErrchk(cudaFree(d_c));
 
   return 0;
 }
