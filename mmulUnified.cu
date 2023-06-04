@@ -98,7 +98,7 @@ int main() {
   auto start = std::chrono::steady_clock::now();
 
   // Launch kernel
-  matrixMul<<<blocks, threads>>>(d_a, d_b, d_c, N);
+  matrixMul<<<BLOCKS, THREADS>>>(d_a, d_b, d_c, N);
 
   gpuErrchk(cudaDeviceSynchronize());
 
